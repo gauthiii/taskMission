@@ -5,6 +5,7 @@ import { AppNav } from './components/AppNav'
 import { membersSeed, tasksSeed } from './data/mockData'
 import { MembersPage } from './pages/MembersPage'
 import { PhaseOneExamplesPage } from './pages/PhaseOneExamplesPage'
+import { ProgressPage } from './pages/ProgressPage'
 import { TaskBoardPage } from './pages/TaskBoardPage'
 import { UseCasesPage } from './pages/UseCasesPage'
 import type { Member, MemberDraft, Task, TaskDraft } from './types'
@@ -87,6 +88,7 @@ export default function App() {
             />
           }
         />
+        <Route path="/progress" element={<ProgressPage members={members} />} />
         <Route path="/use-cases" element={<UseCasesPage />} />
         <Route path="/phase-1-examples" element={<PhaseOneExamplesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

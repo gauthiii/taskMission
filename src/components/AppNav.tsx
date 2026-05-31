@@ -1,4 +1,4 @@
-import { BookOpenCheck, CheckCircle2, FileText, LayoutDashboard, ShieldCheck, UsersRound } from 'lucide-react'
+import { BookOpenCheck, CheckCircle2, FileText, LayoutDashboard, NotebookTabs, ShieldCheck, UsersRound } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 
 type AppNavProps = {
@@ -35,6 +35,10 @@ export function AppNav({ metrics }: AppNavProps) {
         <NavLink to="/members">
           <UsersRound size={17} />
           Members
+        </NavLink>
+        <NavLink to="/progress">
+          <NotebookTabs size={17} />
+          Progress
         </NavLink>
         <NavLink to="/use-cases">
           <BookOpenCheck size={17} />

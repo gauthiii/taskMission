@@ -25,3 +25,20 @@ export type Task = {
 
 export type TaskDraft = Omit<Task, 'id'>
 export type MemberDraft = Omit<Member, 'id'>
+
+export type MeetingPeriod = 'morning' | 'evening'
+
+export type ProgressEntry = {
+  date: string
+  memberId: string
+  points: string[]
+  updatedAt: string
+}
+
+export type MeetingEntry = {
+  date: string
+  period: MeetingPeriod
+  happened: boolean
+  points: string[]
+  updatedAt: string
+}
