@@ -93,8 +93,8 @@ export function AppNav({ metrics }: AppNavProps) {
             </button>
           </div>
         ) : (
-          <NavLink to="/signin" className="btn btn-link">
-            Sign in
+          <NavLink to="/signin" className="nav-signin-btn">
+            <span className="signin-label">Sign in Page</span>
           </NavLink>
         )}
       </div>
