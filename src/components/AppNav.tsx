@@ -1,5 +1,6 @@
 import { BookOpenCheck, CheckCircle2, FileText, LayoutDashboard, NotebookTabs, ShieldCheck, UsersRound } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 type AppNavProps = {
   metrics: {
@@ -14,6 +15,7 @@ type AppNavProps = {
 export function AppNav({ metrics }: AppNavProps) {
   const location = useLocation()
   const isKnowledgePage = location.pathname === '/use-cases' || location.pathname === '/phase-1-examples'
+  const { user, signOut } = useAuth()
 
   return (
     <header className="app-nav">
@@ -63,6 +65,21 @@ export function AppNav({ metrics }: AppNavProps) {
             <span>{metrics.completed}/{metrics.total} complete</span>
             <b>{metrics.averageProgress}%</b>
           </>
+        )}
+      </div>
+
+      <div className="nav-user">
+        {user ? (
+          <>
+            <span className="user-email">{user.email}</span>
+            <button className="btn btn-link" onClick={() => signOut()} aria-label="Sign out">
+              Sign out
+            </button>
+          </>
+        ) : (
+          <NavLink to="/signin" className="btn btn-link">
+            Sign in
+          </NavLink>
         )}
       </div>
     </header>

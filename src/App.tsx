@@ -8,6 +8,8 @@ import { PhaseOneExamplesPage } from './pages/PhaseOneExamplesPage'
 import { ProgressPage } from './pages/ProgressPage'
 import { TaskBoardPage } from './pages/TaskBoardPage'
 import { UseCasesPage } from './pages/UseCasesPage'
+import { SignInPage } from './components/SignInPage'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import type { Member, MemberDraft, Task, TaskDraft } from './types'
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
@@ -65,30 +67,46 @@ export default function App() {
     <div className="app-shell">
       <AppNav metrics={taskMetrics} />
       <Routes>
+        <Route path="/signin" element={<SignInPage />} />
+
         <Route
           path="/"
           element={
-            <TaskBoardPage
-              members={members}
-              tasks={tasks}
-              metrics={taskMetrics}
-              onAddTask={addTask}
-              onUpdateTask={updateTask}
-            />
+            <ProtectedRoute>
+              <TaskBoardPage
+                members={members}
+                tasks={tasks}
+                metrics={taskMetrics}
+                onAddTask={addTask}
+                onUpdateTask={updateTask}
+              />
+            </ProtectedRoute>
           }
         />
+
         <Route
           path="/members"
           element={
-            <MembersPage
-              members={members}
-              tasks={tasks}
-              onAddMember={addMember}
-              onUpdateMember={updateMember}
-            />
+            <ProtectedRoute>
+              <MembersPage
+                members={members}
+                tasks={tasks}
+                onAddMember={addMember}
+                onUpdateMember={updateMember}
+              />
+            </ProtectedRoute>
           }
         />
-        <Route path="/progress" element={<ProgressPage members={members} />} />
+
+        <Route
+          path="/progress"
+          element={
+            <ProtectedRoute>
+              <ProgressPage members={members} />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/use-cases" element={<UseCasesPage />} />
         <Route path="/phase-1-examples" element={<PhaseOneExamplesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
