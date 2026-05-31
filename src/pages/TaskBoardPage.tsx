@@ -1,0 +1,94 @@
+import { ClipboardList, Filter, Sparkles } from 'lucide-react'
+
+import { DeadlineRadar } from '../components/DeadlineRadar'
+import { StatStrip } from '../components/StatStrip'
+import { TaskCard } from '../components/TaskCard'
+import { TaskForm } from '../components/TaskForm'
+import type { Member, Task, TaskDraft, TaskStatus } from '../types'
+
+const lanes: Array<{ status: TaskStatus; label: string; cue: string }> = [
+  { status: 'queued', label: 'Queued', cue: 'Ready for launch' },
+  { status: 'in-motion', label: 'In Motion', cue: 'Moving across the route' },
+  { status: 'blocked', label: 'Blocked', cue: 'Needs intervention' },
+  { status: 'review', label: 'Review', cue: 'Final inspection' },
+  { status: 'done', label: 'Done', cue: 'Mission complete' },
+]
+
+type TaskBoardPageProps = {
+  members: Member[]
+  tasks: Task[]
+  metrics: {
+    total: number
+    completed: number
+    atRisk: number
+    overdue: number
+    averageProgress: number
+  }
+  onAddTask: (draft: TaskDraft) => void
+  onUpdateTask: (taskId: string, patch: Partial<Task>) => void
+}
+
+export function TaskBoardPage({ members, tasks, metrics, onAddTask, onUpdateTask }: TaskBoardPageProps) {
+  return (
+    <main className="page-shell">
+      <section className="hero-band">
+        <div>
+          <span className="eyebrow">Live board</span>
+          <h1>Mission control for team tasks, deadlines, and progress.</h1>
+          <p>
+            Add work, assign the crew, tune progress, and spot deadline heat from one bright operating surface.
+          </p>
+        </div>
+        <div className="hero-actions">
+          <span className="signal-pill">
+            <Sparkles size={16} />
+            Session-only mock data
+          </span>
+          <TaskForm members={members} onAddTask={onAddTask} />
+        </div>
+      </section>
+
+      <StatStrip metrics={metrics} />
+
+      <section className="mission-grid">
+        <div className="board-panel">
+          <div className="board-header">
+            <div>
+              <span className="eyebrow">Task lanes</span>
+              <h2><ClipboardList size={22} /> Progress board</h2>
+            </div>
+            <span className="filter-stamp"><Filter size={15} /> All missions</span>
+          </div>
+
+          <div className="lane-grid">
+            {lanes.map((lane) => {
+              const laneTasks = tasks.filter((task) => task.status === lane.status)
+              return (
+                <section key={lane.status} className={`lane lane-${lane.status}`}>
+                  <div className="lane-header">
+                    <span>
+                      <strong>{lane.label}</strong>
+                      <small>{lane.cue}</small>
+                    </span>
+                    <b>{laneTasks.length}</b>
+                  </div>
+                  <div className="lane-stack">
+                    {laneTasks.length ? (
+                      laneTasks.map((task) => (
+                        <TaskCard key={task.id} task={task} members={members} onUpdateTask={onUpdateTask} />
+                      ))
+                    ) : (
+                      <div className="empty-lane">No tasks in this lane yet.</div>
+                    )}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        </div>
+
+        <DeadlineRadar tasks={tasks} />
+      </section>
+    </main>
+  )
+}
