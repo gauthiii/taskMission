@@ -582,6 +582,39 @@ input[type="range"] {
   margin-top: 16px;
 }
 
+/* Collapsible behavior for deadline radar */
+.deadline-radar {
+  transition: all 240ms ease;
+}
+.deadline-radar.collapsed {
+  position: fixed;
+  right: 18px;
+  top: 96px;
+  width: 160px;
+  padding: 8px;
+  z-index: 60;
+  border-radius: 12px;
+  overflow: visible;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e6eef8;
+  box-shadow: 6px 6px 0 rgba(15, 23, 42, 0.12);
+}
+.deadline-radar.collapsed .radar-track { display: none }
+.deadline-radar.collapsed .radar-header span { display: none }
+.deadline-radar .icon-button { background: transparent; border: none; padding: 6px; cursor: pointer }
+.deadline-radar.collapsed .icon-button { padding: 6px }
+.deadline-radar .radar-dot { box-shadow: none }
+
+/* mini widget label */
+.deadline-radar .radar-mini { display: none }
+.deadline-radar.collapsed .radar-mini { display: flex; gap: 8px; align-items: center; justify-content: center; flex-direction: column; padding: 8px 6px; }
+.deadline-radar .radar-mini-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; background: #fff; color: #111827; border: 1px solid #e6eef8 }
+.deadline-radar .radar-mini-label { font-size: 0.72rem; color: #64748b; text-align: center; padding-top: 6px }
+
+/* when collapsed, expand the main mission grid to take the freed space */
+body.radar-collapsed .mission-grid { grid-template-columns: 1fr; }
+
 .radar-item {
   display: grid;
   grid-template-columns: 34px 1fr;
