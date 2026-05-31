@@ -12,6 +12,8 @@
     "@vitejs/plugin-react": "^6.0.1",
     "firebase": "^12.14.0",
     "lucide-react": "^1.8.0",
+    "react-markdown": "^8.0.5",
+    "remark-gfm": "^3.0.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.2"

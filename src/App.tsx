@@ -10,6 +10,7 @@ import { TaskBoardPage } from './pages/TaskBoardPage'
 import { UseCasesPage } from './pages/UseCasesPage'
 import { SignInPage } from './components/SignInPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { HiddenPage } from './pages/HiddenPage'
 import type { Member, MemberDraft, Task, TaskDraft } from './types'
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
@@ -109,6 +110,7 @@ export default function App() {
 
         <Route path="/use-cases" element={<UseCasesPage />} />
         <Route path="/phase-1-examples" element={<PhaseOneExamplesPage />} />
+        <Route path="/hidden" element={<HiddenPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
