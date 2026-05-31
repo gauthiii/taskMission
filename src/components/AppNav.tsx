@@ -1,4 +1,4 @@
-import { BookOpenCheck, CheckCircle2, FileText, LayoutDashboard, NotebookTabs, ShieldCheck, UsersRound } from 'lucide-react'
+import { BookOpenCheck, CheckCircle2, FileText, LayoutDashboard, NotebookTabs, ShieldCheck, UsersRound, User, LogOut } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
@@ -16,6 +16,15 @@ export function AppNav({ metrics }: AppNavProps) {
   const location = useLocation()
   const isKnowledgePage = location.pathname === '/use-cases' || location.pathname === '/phase-1-examples'
   const { user, signOut } = useAuth()
+  const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : '')
+  const initials = displayName
+    ? displayName
+        .split(' ')
+        .map((s) => s[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'U'
 
   return (
     <header className="app-nav">
@@ -70,12 +79,19 @@ export function AppNav({ metrics }: AppNavProps) {
 
       <div className="nav-user">
         {user ? (
-          <>
-            <span className="user-email">{user.email}</span>
-            <button className="btn btn-link" onClick={() => signOut()} aria-label="Sign out">
-              Sign out
+          <div className="user-block">
+            <div className="user-avatar" aria-hidden>
+              {user.photoURL ? <img src={user.photoURL} alt="avatar" /> : <span>{initials}</span>}
+            </div>
+            <div className="user-meta">
+              <div className="greeting">Hi, <strong>{displayName}</strong></div>
+              <div className="user-email muted">{user.email}</div>
+            </div>
+            <button className="signout-btn" onClick={() => signOut()} aria-label="Sign out">
+              <LogOut size={14} />
+              <span>Sign out</span>
             </button>
-          </>
+          </div>
         ) : (
           <NavLink to="/signin" className="btn btn-link">
             Sign in
