@@ -163,7 +163,7 @@ export function MembersPage({ members, tasks, onAddMember, onUpdateMember }: Mem
         <aside className="member-side">
           <MemberForm onAddMember={onAddMember} />
 
-          {spotlight && spotlightStats && (
+          {/* {spotlight && spotlightStats && (
             <section className="spotlight-panel">
               <div className="section-title">
                 <span className="eyebrow">Spotlight</span>
@@ -181,7 +181,7 @@ export function MembersPage({ members, tasks, onAddMember, onUpdateMember }: Mem
                 ))}
               </div>
             </section>
-          )}
+          )} */}
         </aside>
       </section>
     </main>
