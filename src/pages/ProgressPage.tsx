@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { CalendarDays, Check, ClipboardList, Eraser, Moon, Pencil, Save, Sun, X } from 'lucide-react'
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
 
+import { db } from '../firebase'
+import { useAuth } from '../hooks/useAuth'
 import type { MeetingEntry, MeetingPeriod, Member, ProgressEntry } from '../types'
 
-const STORAGE_KEY = 'taskmission.progress.v1'
 const START_DATE = '2026-06-01'
 const END_DATE = '2026-07-01'
+const DAILY_PROGRESS_COLLECTION = 'dailyProgress'
 
 type ProgressState = {
   progressEntries: ProgressEntry[]
@@ -14,6 +17,15 @@ type ProgressState = {
 
 type ProgressPageProps = {
   members: Member[]
+}
+
+type DailyProgressDocument = ProgressState & {
+  date: string
+}
+
+type RowSaveStatus = {
+  state: 'saved' | 'error'
+  message: string
 }
 
 type EditablePointsProps = {
@@ -52,32 +64,55 @@ const formatDate = (date: string) =>
 const normalizePoints = (raw: string) =>
   raw
     .split(/\n+/)
-    .flatMap((line) => line.split(/[.;,]+/))
-    .map((part) => part.trim().replace(/^[\-*•]\s*/, '').replace(/[.;,]+$/g, '').trim())
+    .flatMap((line) => line.split(/(?<=[.?!])\s+/))
+    .map((part) => part.trim().replace(/^[\-*•]\s*/, '').replace(/[.?!]+$/g, '').trim())
     .filter(Boolean)
 
 const pointsToDraft = (points: string[]) => points.join('\n')
 
-const getInitialProgressState = (): ProgressState => {
-  if (typeof window === 'undefined') return { progressEntries: [], meetingEntries: [] }
+const isProgressEntry = (value: unknown): value is ProgressEntry => {
+  if (!value || typeof value !== 'object') return false
+  const entry = value as Partial<ProgressEntry>
+  return (
+    typeof entry.date === 'string' &&
+    typeof entry.memberId === 'string' &&
+    Array.isArray(entry.points) &&
+    entry.points.every((point) => typeof point === 'string') &&
+    typeof entry.updatedAt === 'string'
+  )
+}
 
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (!stored) return { progressEntries: [], meetingEntries: [] }
-    const parsed = JSON.parse(stored) as Partial<ProgressState>
+const isMeetingEntry = (value: unknown): value is MeetingEntry => {
+  if (!value || typeof value !== 'object') return false
+  const entry = value as Partial<MeetingEntry>
+  return (
+    typeof entry.date === 'string' &&
+    (entry.period === 'morning' || entry.period === 'evening') &&
+    typeof entry.happened === 'boolean' &&
+    Array.isArray(entry.points) &&
+    entry.points.every((point) => typeof point === 'string') &&
+    typeof entry.updatedAt === 'string'
+  )
+}
 
-    return {
-      progressEntries: Array.isArray(parsed.progressEntries) ? parsed.progressEntries : [],
-      meetingEntries: Array.isArray(parsed.meetingEntries) ? parsed.meetingEntries : [],
-    }
-  } catch {
-    return { progressEntries: [], meetingEntries: [] }
+const normalizeDailyProgressDocument = (date: string, data: unknown): DailyProgressDocument => {
+  const documentData = data && typeof data === 'object' ? data as Partial<ProgressState> : {}
+
+  return {
+    date,
+    progressEntries: Array.isArray(documentData.progressEntries)
+      ? documentData.progressEntries.filter(isProgressEntry)
+      : [],
+    meetingEntries: Array.isArray(documentData.meetingEntries)
+      ? documentData.meetingEntries.filter(isMeetingEntry)
+      : [],
   }
 }
 
 function EditablePoints({ points, placeholder, accentColor = '#2563eb', onSave }: EditablePointsProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [draft, setDraft] = useState(pointsToDraft(points))
+  const [restorePoints, setRestorePoints] = useState(points)
 
   useEffect(() => {
     if (!isEditing) setDraft(pointsToDraft(points))
@@ -89,7 +124,8 @@ function EditablePoints({ points, placeholder, accentColor = '#2563eb', onSave }
   }
 
   const cancel = () => {
-    setDraft(pointsToDraft(points))
+    setDraft(pointsToDraft(restorePoints))
+    onSave(restorePoints)
     setIsEditing(false)
   }
 
@@ -101,7 +137,10 @@ function EditablePoints({ points, placeholder, accentColor = '#2563eb', onSave }
           autoFocus
           placeholder={placeholder}
           onBlur={commit}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            onSave(normalizePoints(event.target.value))
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault()
@@ -130,7 +169,10 @@ function EditablePoints({ points, placeholder, accentColor = '#2563eb', onSave }
       type="button"
       className={points.length ? 'progress-read-cell has-points' : 'progress-read-cell'}
       style={{ '--entry-color': accentColor } as CSSProperties}
-      onClick={() => setIsEditing(true)}
+      onClick={() => {
+        setRestorePoints(points)
+        setIsEditing(true)
+      }}
     >
       {points.length ? (
         <>
@@ -183,12 +225,55 @@ function MeetingCell({ entry, period, onChange }: MeetingCellProps) {
 }
 
 export function ProgressPage({ members }: ProgressPageProps) {
+  const { user } = useAuth()
   const dates = useMemo(createDateRange, [])
-  const [progressState, setProgressState] = useState<ProgressState>(getInitialProgressState)
+  const visibleDates = useMemo(() => new Set(dates), [dates])
+  const [progressState, setProgressState] = useState<ProgressState>({ progressEntries: [], meetingEntries: [] })
+  const [savedDates, setSavedDates] = useState<Set<string>>(() => new Set())
+  const [savingDates, setSavingDates] = useState<Set<string>>(() => new Set())
+  const [rowStatuses, setRowStatuses] = useState<Record<string, RowSaveStatus>>({})
+  const [isLoadingProgress, setIsLoadingProgress] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progressState))
-  }, [progressState])
+    let isMounted = true
+
+    const loadProgress = async () => {
+      setIsLoadingProgress(true)
+      setLoadError(null)
+
+      try {
+        const progressQuery = query(
+          collection(db, DAILY_PROGRESS_COLLECTION),
+          where('date', '>=', START_DATE),
+          where('date', '<=', END_DATE),
+        )
+        const snapshot = await getDocs(progressQuery)
+        if (!isMounted) return
+
+        const documents = snapshot.docs
+          .filter((progressDoc) => visibleDates.has(progressDoc.id))
+          .map((progressDoc) => normalizeDailyProgressDocument(progressDoc.id, progressDoc.data()))
+
+        setProgressState({
+          progressEntries: documents.flatMap((document) => document.progressEntries),
+          meetingEntries: documents.flatMap((document) => document.meetingEntries),
+        })
+        setSavedDates(new Set(documents.map((document) => document.date)))
+      } catch (error) {
+        if (!isMounted) return
+        setLoadError(error instanceof Error ? error.message : 'Unable to load progress from Firestore.')
+      } finally {
+        if (isMounted) setIsLoadingProgress(false)
+      }
+    }
+
+    void loadProgress()
+
+    return () => {
+      isMounted = false
+    }
+  }, [visibleDates])
 
   const progressByKey = useMemo(() => {
     const map = new Map<string, ProgressEntry>()
@@ -240,6 +325,56 @@ export function ProgressPage({ members }: ProgressPageProps) {
     })
   }
 
+  const saveDateToFirestore = async (date: string) => {
+    const progressEntries = progressState.progressEntries.filter(
+      (entry) => entry.date === date && entry.points.length > 0,
+    )
+    const meetingEntries = progressState.meetingEntries.filter(
+      (entry) => entry.date === date && (entry.happened || entry.points.length > 0),
+    )
+
+    setSavingDates((current) => new Set(current).add(date))
+    setRowStatuses((current) => {
+      const next = { ...current }
+      delete next[date]
+      return next
+    })
+
+    try {
+      await setDoc(
+        doc(db, DAILY_PROGRESS_COLLECTION, date),
+        {
+          date,
+          progressEntries,
+          meetingEntries,
+          updatedAt: serverTimestamp(),
+          updatedBy: user?.uid ?? user?.email ?? null,
+        },
+        { merge: true },
+      )
+
+      setSavedDates((current) => new Set(current).add(date))
+      setRowStatuses((current) => ({
+        ...current,
+        [date]: { state: 'saved', message: savedDates.has(date) ? 'Updated' : 'Saved' },
+      }))
+    } catch (error) {
+      setRowStatuses((current) => ({
+        ...current,
+        [date]: {
+          state: 'error',
+          message: error instanceof Error ? error.message : 'Save failed',
+        },
+      }))
+    } finally {
+      setSavingDates((current) => {
+        const next = new Set(current)
+        next.delete(date)
+        return next
+      })
+    }
+  }
+
   const filledProgressCount = progressState.progressEntries.filter((entry) => entry.points.length > 0).length
   const happenedMeetingCount = progressState.meetingEntries.filter((entry) => entry.happened).length
 
@@ -257,6 +392,12 @@ export function ProgressPage({ members }: ProgressPageProps) {
           <span><Check size={18} /><strong>{happenedMeetingCount}</strong> meetings</span>
         </div>
       </section>
+
+      {(isLoadingProgress || loadError) && (
+        <section className={loadError ? 'progress-sync-banner error' : 'progress-sync-banner'}>
+          {loadError ? `Firestore load failed: ${loadError}` : 'Loading progress from Firestore...'}
+        </section>
+      )}
 
       <section className="progress-log-shell">
         <div className="progress-table-wrap">
@@ -280,6 +421,20 @@ export function ProgressPage({ members }: ProgressPageProps) {
                   <th className="progress-date-col">
                     <strong>{formatDate(date)}</strong>
                     <span>{date}</span>
+                    <button
+                      type="button"
+                      className="date-save-btn"
+                      disabled={savingDates.has(date)}
+                      onClick={() => void saveDateToFirestore(date)}
+                    >
+                      <Save size={13} />
+                      {savingDates.has(date) ? 'Saving...' : savedDates.has(date) ? 'Update' : 'Save'}
+                    </button>
+                    {rowStatuses[date] && (
+                      <small className={`date-save-status ${rowStatuses[date].state}`}>
+                        {rowStatuses[date].message}
+                      </small>
+                    )}
                   </th>
                   {members.map((member) => {
                     const entry = progressByKey.get(`${date}:${member.id}`)

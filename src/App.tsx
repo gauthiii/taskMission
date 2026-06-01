@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppNav } from './components/AppNav'
-import { membersSeed, tasksSeed } from './data/mockData'
+import { membersSeed } from './data/mockData'
 import { MembersPage } from './pages/MembersPage'
 import { PhaseOneExamplesPage } from './pages/PhaseOneExamplesPage'
 import { ProgressPage } from './pages/ProgressPage'
@@ -17,7 +17,7 @@ const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 
 export default function App() {
   const [members, setMembers] = useState<Member[]>(membersSeed)
-  const [tasks, setTasks] = useState<Task[]>(tasksSeed)
+  const [tasks, setTasks] = useState<Task[]>([])
 
   const taskMetrics = useMemo(() => {
     const today = new Date()
